@@ -7,11 +7,6 @@ import wandb
 from tqdm import tqdm
 from options.options import parse
 
-# Only set CUDA_VISIBLE_DEVICES on systems with NVIDIA GPUs (Linux)
-if sys.platform != 'darwin':
-    # Will be set properly inside main() after parsing config
-    pass
-
 import torch
 import torch.optim
 import torch.multiprocessing as mp
@@ -26,15 +21,27 @@ from utils.device import get_device, is_cuda, is_mps
 
 torch.autograd.set_detect_anomaly(True)
 
-# These globals are set inside main() after parsing the config
-opt = None
-PATH_MODEL = None
-NEW_PATH_MODEL = None
-BEST_PATH_MODEL = None
-largest_capable_size = 1500
+def run_model(rank, world_size, path_options):
+    """
+    Each process (or the single process on MPS) parses the config itself,
+    so it works with both mp.spawn (CUDA) and direct call (MPS/CPU).
+    """
+    # Parse config in each process — mp.spawn can't share globals
+    opt = parse(path_options)
 
-def run_model(rank, world_size):
-    
+    # Set CUDA devices on Linux
+    if sys.platform != 'darwin':
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(opt['device']['gpus'])
+
+    # Setup model save paths
+    PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL = create_path_models(opt['save'])
+
+    # Compute largest image size for eval cropping
+    if opt['datasets']['train']['batch_size_train'] >= 8:
+        largest_capable_size = opt['datasets']['train']['cropsize'] * opt['datasets']['train']['batch_size_train']
+    else:
+        largest_capable_size = 1500
+
     setup(rank, world_size=world_size)
 
     # LOAD THE DATALOADERS
@@ -97,32 +104,18 @@ def run_model(rank, world_size):
     cleanup()
 
 def main(path_options='./options/train/LOLBlur.yml'):
-    global opt, PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL, largest_capable_size
-
-    # Parse the config file
+    # Parse once here just to read device config and wandb setting
     opt = parse(path_options)
-
-    # Set CUDA devices on Linux
-    if sys.platform != 'darwin':
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(opt['device']['gpus'])
-
-    # Setup model save paths
-    PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL = create_path_models(opt['save'])
-
-    # Compute largest image size for eval cropping
-    if opt['datasets']['train']['batch_size_train'] >= 8:
-        largest_capable_size = opt['datasets']['train']['cropsize'] * opt['datasets']['train']['batch_size_train']
-    else:
-        largest_capable_size = 1500
 
     if is_cuda():
         # Multi-GPU training with DDP on CUDA
+        # Pass path_options so each spawned process can parse its own config
         world_size = len(opt['device']['ids'])
-        mp.spawn(run_model, args=(world_size,), nprocs=world_size, join=True)
+        mp.spawn(run_model, args=(world_size, path_options), nprocs=world_size, join=True)
     else:
         # Single-process training on MPS (macOS) or CPU
         print(f'Running single-process training on: {get_device()}')
-        run_model(rank=0, world_size=1)
+        run_model(rank=0, world_size=1, path_options=path_options)
 
     if opt['wandb']['init']:
         wandb.finish()
