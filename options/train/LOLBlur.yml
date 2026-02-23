@@ -1,0 +1,87 @@
+#### training devices
+device:
+  cuda: True
+  gpus: 0
+
+#### datasets
+datasets:
+  name: LOLBlur
+  train:
+    train_path: /mnt/valab-datasets/LOLBlur/train
+    n_workers: 4  # per GPU
+    batch_size_train: 2
+    cropsize: 256   # size you want to crop out as input sample.
+    flips: True
+    verbose: True
+    crop_type: Random
+  val:
+    test_path: /mnt/valab-datasets/LOLBlur/test
+    batch_size_test: 1
+
+#### network structures
+network:
+  name: Network
+  resume_training: True
+  img_channels: 3
+  width: 32
+  middle_blk_num_enc: 8
+  middle_blk_num_dec: 8
+  enc_blk_nums: [1, 1, 1]
+  dec_blk_nums: [1, 1, 1]
+  dilations: [1, 1, 1]
+  extra_depth_wise: True
+
+#### training settings: learning rate scheme, loss
+train:
+  lr_initial: !!float 5e-4
+  lr_scheme: CosineAnnealing
+  betas: [0.9, 0.9]
+  epochs: 500
+  lr_gamma: 0.5
+  weight_decay: !!float 1e-3
+  eta_min: !!float 1e-6
+
+  pixel_criterion: l1
+  pixel_weight: 1.0
+
+  perceptual: True
+  perceptual_criterion: l1
+  perceptual_weight: 0.01
+  perceptual_reduction: mean
+
+  edge: True
+  edge_criterion: l2
+  edge_weight: 50.0
+  edge_reduction: mean
+
+  frequency: False
+  frequency_criterion: l2
+  frequency_weight: 0.01
+  frequency_reduction: sum
+
+  enhance: False
+  enhance_criterion: l1
+  enhance_weight: 0.8
+  enhance_reduction: mean
+
+
+#### save model
+save:
+  path: ./models/Network_LOLBLur_dilation1.pt
+  best: ./models/bests
+  new: ./models/Network_LOLBlur_dilation1.pt 
+
+#### wandb:
+wandb:
+  init: False
+  project: GOPRO_LOLBlur
+  entity: cidautai
+  name: Network_LOLBlur_dilation1
+  save_code: True
+  resume: never # resume: must, if uploading to an existing project
+  id: None # must be None if don't want to overwrite an existing project
+
+
+
+
+
