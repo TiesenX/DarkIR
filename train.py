@@ -1,3 +1,5 @@
+import fire
+
 import numpy as np
 import os, sys
 import time
@@ -5,21 +7,16 @@ import wandb
 from tqdm import tqdm
 from options.options import parse
 
-# read the options file and define the variables from it. If you want to change the hyperparameters of the net and the conditions of training go to
-# the file and change them what you need
-path_options = './options/train/Baseline.yml'
-opt = parse(path_options)
-
 # Only set CUDA_VISIBLE_DEVICES on systems with NVIDIA GPUs (Linux)
-import sys
-if sys.platform != 'darwin':  # not macOS
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(opt['device']['gpus'])
+if sys.platform != 'darwin':
+    # Will be set properly inside main() after parsing config
+    pass
 
 import torch
 import torch.optim
 import torch.multiprocessing as mp
 
-from data.datasets.datapipeline import *
+from data.dataset_reader.datapipeline import *
 from archs import *
 from losses import *
 from data import *
@@ -29,16 +26,13 @@ from utils.device import get_device, is_cuda, is_mps
 
 torch.autograd.set_detect_anomaly(True)
 
-#parameters for saving model
-PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL = create_path_models(opt['save'])
+# These globals are set inside main() after parsing the config
+opt = None
+PATH_MODEL = None
+NEW_PATH_MODEL = None
+BEST_PATH_MODEL = None
+largest_capable_size = 1500
 
-if opt['datasets']['train']['batch_size_train']>=8:
-    largest_capable_size = opt['datasets']['train']['cropsize'] * opt['datasets']['train']['batch_size_train']
-else: largest_capable_size = 1500
-
-
-best_psnr = 0.
-    
 def run_model(rank, world_size):
     
     setup(rank, world_size=world_size)
@@ -52,8 +46,6 @@ def run_model(rank, world_size):
     opt['macs'] = macs
     opt['params'] = params
 
-    # model = freeze_parameters(model, substring='adapter', adapter = False) # freeze the adapter if there is any
-
     # define the optimizer
     optim, scheduler = create_optim_scheduler(opt['train'], model)
 
@@ -63,7 +55,7 @@ def run_model(rank, world_size):
 
     all_losses = create_loss(opt['train'], rank=rank)
     # INIT WANDB
-    init_wandb(rank, opt)
+    # init_wandb(rank, opt)
     best_psnr= 0
     for epoch in tqdm(range(start_epochs, opt['train']['epochs'])):
 
@@ -75,7 +67,6 @@ def run_model(rank, world_size):
         shuffle_sampler(samplers, epoch)
         # train phase
         model.train()
-        # model = freeze_parameters(model, substring='adapter', adapter = False) # freeze the adapter if there is any
         model, optim, metrics_train = train_model(model, optim, all_losses, train_loader,
                                             metrics_train, rank = rank)
         # eval phase
@@ -105,7 +96,25 @@ def run_model(rank, world_size):
 
     cleanup()
 
-def main():
+def main(path_options='./options/train/LOLBlur.yml'):
+    global opt, PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL, largest_capable_size
+
+    # Parse the config file
+    opt = parse(path_options)
+
+    # Set CUDA devices on Linux
+    if sys.platform != 'darwin':
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(opt['device']['gpus'])
+
+    # Setup model save paths
+    PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL = create_path_models(opt['save'])
+
+    # Compute largest image size for eval cropping
+    if opt['datasets']['train']['batch_size_train'] >= 8:
+        largest_capable_size = opt['datasets']['train']['cropsize'] * opt['datasets']['train']['batch_size_train']
+    else:
+        largest_capable_size = 1500
+
     if is_cuda():
         # Multi-GPU training with DDP on CUDA
         world_size = len(opt['device']['ids'])
@@ -119,5 +128,4 @@ def main():
         wandb.finish()
 
 if __name__ == '__main__':
-    main()
-
+    fire.Fire(main)

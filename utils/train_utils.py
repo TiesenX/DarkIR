@@ -4,9 +4,9 @@ import sys, os
 from lpips import LPIPS
 import numpy as np
 sys.path.append('../losses')
-sys.path.append('../data/datasets/datapipeline')
+sys.path.append('../data/dataset_reader/datapipeline')
 from losses import *
-from data.datasets.datapipeline import CropTo4
+from data.dataset_reader.datapipeline import CropTo4
 from utils.device import get_device, get_backend, is_cuda
 
 calc_SSIM = SSIM(data_range=1.)

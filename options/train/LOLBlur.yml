@@ -7,7 +7,7 @@ device:
 datasets:
   name: LOLBlur
   train:
-    train_path: /mnt/valab-datasets/LOLBlur/train
+    train_path: /Users/tienlm/Documents/Master/Code/DarkIR_og/data/datasets/LOLBlur/test
     n_workers: 4  # per GPU
     batch_size_train: 2
     cropsize: 256   # size you want to crop out as input sample.
@@ -15,13 +15,13 @@ datasets:
     verbose: True
     crop_type: Random
   val:
-    test_path: /mnt/valab-datasets/LOLBlur/test
+    test_path: /Users/tienlm/Documents/Master/Code/DarkIR_og/data/datasets/LOLBlur/test
     batch_size_test: 1
 
 #### network structures
 network:
-  name: Network
-  resume_training: True
+  name: DarkIR
+  resume_training: False
   img_channels: 3
   width: 32
   middle_blk_num_enc: 8
@@ -67,9 +67,9 @@ train:
 
 #### save model
 save:
-  path: ./models/Network_LOLBLur_dilation1.pt
+  path: /Users/tienlm/Documents/Master/Code/DarkIR_og/models/DarkIR_384.pt
   best: ./models/bests
-  new: ./models/Network_LOLBlur_dilation1.pt 
+  new: /Users/tienlm/Documents/Master/Code/DarkIR_og/models/DarkIR_384.pt
 
 #### wandb:
 wandb:
