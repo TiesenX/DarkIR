@@ -2,14 +2,15 @@
 device:
   cuda: True
   gpus: 0
+  ids: [0]
 
 #### datasets
 datasets:
   name: LOLBlur
   train:
     train_path: /Users/tienlm/Documents/Master/Code/DarkIR_og/data/datasets/LOLBlur/test
-    n_workers: 4  # per GPU
-    batch_size_train: 2
+    n_workers: 1  # per GPU
+    batch_size_train: 1
     cropsize: 256   # size you want to crop out as input sample.
     flips: True
     verbose: True
