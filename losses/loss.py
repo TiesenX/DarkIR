@@ -351,7 +351,7 @@ class VGG19(torch.nn.Module):
 class VGGLoss(nn.Module):
     def __init__(self, loss_weight=1.0, criterion = 'l1', reduction='mean'):
         super(VGGLoss, self).__init__()
-        self.vgg = VGG19().cuda()
+        self.vgg = VGG19()  # device placement handled by .to() from caller
         if reduction not in ['none', 'mean', 'sum']:
             raise ValueError(f'Unsupported reduction mode: {reduction}. '
                              f'Supported ones are: {_reduction_modes}')

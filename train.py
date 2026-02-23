@@ -9,7 +9,11 @@ from options.options import parse
 # the file and change them what you need
 path_options = './options/train/Baseline.yml'
 opt = parse(path_options)
-os.environ["CUDA_VISIBLE_DEVICES"]= str(opt['device']['gpus']) # you need to fix this before importing torch
+
+# Only set CUDA_VISIBLE_DEVICES on systems with NVIDIA GPUs (Linux)
+import sys
+if sys.platform != 'darwin':  # not macOS
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(opt['device']['gpus'])
 
 import torch
 import torch.optim
@@ -21,6 +25,7 @@ from losses import *
 from data import *
 from utils.utils import init_wandb, logging_dict, create_path_models
 from utils.train_utils import *
+from utils.device import get_device, is_cuda, is_mps
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -83,9 +88,12 @@ def run_model(rank, world_size):
             print(f"Epoch {epoch + 1} of {opt['train']['epochs']} took {time.time() - start_time:.3f}s\n")
             if type(next(iter(metrics_eval.values()))) == dict:
                 for key, metric_eval in metrics_eval.items():
-                    print(f' \t {key} --- PSNR: {metric_eval['valid_psnr']}, SSIM: {metric_eval['valid_ssim']}, LPIPS: {metric_eval['valid_lpips']}')
+                    v_psnr, v_ssim, v_lpips = metric_eval['valid_psnr'], metric_eval['valid_ssim'], metric_eval['valid_lpips']
+                    print(f' \t {key} --- PSNR: {v_psnr}, SSIM: {v_ssim}, LPIPS: {v_lpips}')
             else:
-                print(f' \t {opt['datasets']['name']} --- PSNR: {metrics_eval['valid_psnr']}, SSIM: {metrics_eval['valid_ssim']}, LPIPS: {metrics_eval['valid_lpips']}')
+                ds_name = opt['datasets']['name']
+                v_psnr, v_ssim, v_lpips = metrics_eval['valid_psnr'], metrics_eval['valid_ssim'], metrics_eval['valid_lpips']
+                print(f' \t {ds_name} --- PSNR: {v_psnr}, SSIM: {v_ssim}, LPIPS: {v_lpips}')
         # Save the model after every epoch
         best_psnr = save_checkpoint(model, optim, scheduler, metrics_eval = metrics_eval, metrics_train=metrics_train, 
                                     paths = {'new':NEW_PATH_MODEL, 'best': BEST_PATH_MODEL}, rank=rank)
@@ -98,9 +106,14 @@ def run_model(rank, world_size):
     cleanup()
 
 def main():
-    # world_size = len(opt['device']['ids'])
-    world_size = len(opt['device']['ids'])
-    mp.spawn(run_model, args =(world_size,), nprocs=world_size, join=True)
+    if is_cuda():
+        # Multi-GPU training with DDP on CUDA
+        world_size = len(opt['device']['ids'])
+        mp.spawn(run_model, args=(world_size,), nprocs=world_size, join=True)
+    else:
+        # Single-process training on MPS (macOS) or CPU
+        print(f'Running single-process training on: {get_device()}')
+        run_model(rank=0, world_size=1)
 
     if opt['wandb']['init']:
         wandb.finish()

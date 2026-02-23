@@ -7,24 +7,29 @@ sys.path.append('../losses')
 sys.path.append('../data/datasets/datapipeline')
 from losses import *
 from data.datasets.datapipeline import CropTo4
+from utils.device import get_device, get_backend, is_cuda
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 calc_SSIM = SSIM(data_range=1.)
 crop_to_4= CropTo4()
 
 def setup(rank, world_size):
+    if not is_cuda():
+        # No DDP on macOS/CPU — single-process training
+        return
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
-    # print('before starting the process')
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    # dist.barrier()
+    backend = get_backend()
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
     
 def cleanup():
+    if not is_cuda():
+        return
     dist.destroy_process_group()
     
 def save_model(model, path):
-    if dist.get_rank() == 0:
-        torch.save(model.state_dict(), path)
+    if is_cuda() and dist.get_rank() != 0:
+        return
+    torch.save(model.state_dict(), path)
 
 def shuffle_sampler(samplers, epoch):
     '''
@@ -41,15 +46,12 @@ def train_model(model, optim, all_losses, train_loader, metrics, adapter = None,
     '''
     outside_batch = None
     mean_metrics = {'train_loss': [], 'train_psnr': [], 'train_og_psnr': [], 'train_ssim':[]}
+    dev = get_device(rank)
     for high_batch, low_batch in train_loader:
 
-        # Move the data to the GPU
-        if not rank:
-            high_batch = high_batch.to(device)
-            low_batch = low_batch.to(device)
-        else:
-            high_batch = high_batch.to(rank)
-            low_batch = low_batch.to(rank)
+        # Move the data to the device (CUDA/MPS/CPU)
+        high_batch = high_batch.to(dev)
+        low_batch = low_batch.to(dev)
 
         optim.zero_grad()
         # Feed the data into the model
@@ -85,7 +87,8 @@ def train_model(model, optim, all_losses, train_loader, metrics, adapter = None,
     return model, optim, metrics
 
 def eval_one_loader(model, test_loader, metrics, largest_capable_size = 1500, adapter = None, rank=0):
-    calc_LPIPS = LPIPS(net = 'vgg', verbose=False).to(rank)
+    dev = get_device(rank)
+    calc_LPIPS = LPIPS(net = 'vgg', verbose=False).to(dev)
     mean_metrics = {'valid_psnr':[], 'valid_ssim':[], 'valid_lpips':[]}
     with torch.no_grad():
         # Now we need to go over the test_loader and evaluate the results of the epoch
@@ -100,8 +103,8 @@ def eval_one_loader(model, test_loader, metrics, largest_capable_size = 1500, ad
                 valid_ssim_batch = 0
                 valid_lpips_batch = 0              
                 for high_crop, low_crop in zip(high_batch_valid_crop, low_batch_valid_crop):
-                    high_crop = high_crop.to(device)
-                    low_crop = low_crop.to(device)
+                    high_crop = high_crop.to(dev)
+                    low_crop = low_crop.to(dev)
 
                     enhanced_crop = model(low_crop)#, use_adapter = None)
                     # loss
@@ -117,12 +120,8 @@ def eval_one_loader(model, test_loader, metrics, largest_capable_size = 1500, ad
                 low_batch_valid = low_crop
                 
             else: # If not, we process the image normally
-                if not rank:
-                    high_batch_valid = high_batch_valid.to(device)
-                    low_batch_valid = low_batch_valid.to(device)
-                else:
-                    high_batch_valid = high_batch_valid.to(rank)
-                    low_batch_valid = low_batch_valid.to(rank)                                    
+                high_batch_valid = high_batch_valid.to(dev)
+                low_batch_valid = low_batch_valid.to(dev)
                 if adapter: enhanced_batch_valid = model(low_batch_valid, use_adapter = adapter)#, side_loss = False, use_adapter = None)
                 else: enhanced_batch_valid = model(low_batch_valid)
                 # loss

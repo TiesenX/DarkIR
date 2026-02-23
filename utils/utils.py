@@ -101,10 +101,17 @@ def logging_dict(metrics_train, metrics_eval, dict_images):
 def create_path_models(opt):
     ''' 
     Creates a set of paths to save the model based on the config file.
+    Returns (PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL).
     '''
-
     PATH_MODEL     = opt['path']
-    return PATH_MODEL
+    NEW_PATH_MODEL = opt.get('new', opt['path'])
+    BEST_PATH_MODEL = opt.get('best', os.path.join(os.path.dirname(opt['path']), 'best.pt'))
+    
+    # Ensure directories exist
+    os.makedirs(os.path.dirname(PATH_MODEL), exist_ok=True)
+    os.makedirs(os.path.dirname(BEST_PATH_MODEL), exist_ok=True)
+    
+    return PATH_MODEL, NEW_PATH_MODEL, BEST_PATH_MODEL
 
 if __name__ == '__main__':
     

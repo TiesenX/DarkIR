@@ -1,4 +1,5 @@
 from .loss import MSELoss, L1Loss, CharbonnierLoss, SSIM, VGGLoss, EdgeLoss, FrequencyLoss, EnhanceLoss
+from utils.device import get_device
 
 def create_loss(opt, rank):
     
@@ -6,6 +7,7 @@ def create_loss(opt, rank):
     Returns the needed losses for evaluating our model
     '''
     losses = dict()
+    dev = get_device(rank)
     
     # first the pixel losses
     if opt['pixel_criterion'] == 'l1':
@@ -17,13 +19,13 @@ def create_loss(opt, rank):
     else:
         raise NotImplementedError('Pixel Criterion not implemented')
 
-    losses['pixel_loss'] = pixel_loss.to(rank)
+    losses['pixel_loss'] = pixel_loss.to(dev)
     if rank == 0: print(f"Using pixel loss {opt['pixel_criterion']} ")
     # now the perceptual loss
     if opt['perceptual']:     
         perceptual_loss = VGGLoss(loss_weight = opt['perceptual_weight'],
                                 criterion = opt['perceptual_criterion'],
-                                reduction = opt['perceptual_reduction']).to(rank)
+                                reduction = opt['perceptual_reduction']).to(dev)
         losses['perceptual_loss'] = perceptual_loss
         if rank==0: print(f"Using perceptual loss {opt['perceptual_criterion']} with weight {opt['perceptual_weight']}")
     # the edge loss
@@ -31,21 +33,21 @@ def create_loss(opt, rank):
         edge_loss = EdgeLoss(loss_weight = opt['edge_weight'],
                                 criterion = opt['edge_criterion'],
                                 reduction = opt['edge_reduction'],
-                                rank = rank).to(rank)
+                                rank = dev).to(dev)
         losses['edge_loss'] = edge_loss
         if rank==0: print(f"Using edge loss {opt['edge_criterion']} with weight {opt['edge_weight']}")
     # the frequency loss
     if opt['frequency']:
         frequency_loss = FrequencyLoss(loss_weight = opt['edge_weight'],
                                 reduction = opt['edge_reduction'],
-                                criterion = opt['frequency_criterion']).to(rank)
+                                criterion = opt['frequency_criterion']).to(dev)
         losses['frequecy_loss'] = frequency_loss
         if rank==0: print(f"Using frequency loss {opt['frequency_criterion']} with weight {opt['frequency_weight']}")
     # the enhance loss
     if opt['enhance']:
         enhance_loss = EnhanceLoss(loss_weight= opt['enhance_weight'],
                                 reduction = opt['enhance_reduction'],
-                                criterion = opt['enhance_criterion']).to(rank)
+                                criterion = opt['enhance_criterion']).to(dev)
         losses['enhance_loss'] = enhance_loss
         if rank==0: print(f"Using enhance loss {opt['enhance_criterion']} with weight {opt['enhance_weight']}")
     

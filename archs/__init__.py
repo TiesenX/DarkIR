@@ -3,7 +3,8 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.nn.parallel import DistributedDataParallel as DDP
 from ptflops import get_model_complexity_info
 
-from .DarkIR import DarkIR   
+from .DarkIR import DarkIR
+from utils.device import get_device, get_map_location, is_cuda
 
 def create_model(opt, rank, adapter = False):
     '''
@@ -12,6 +13,7 @@ def create_model(opt, rank, adapter = False):
     '''
     name = opt['name']
 
+    dev = get_device(rank)
 
     model = DarkIR(img_channel=opt['img_channels'], 
                     width=opt['width'], 
@@ -32,9 +34,11 @@ def create_model(opt, rank, adapter = False):
     else:
         macs, params = None, None
 
-    model.to(rank)
+    model.to(dev)
     
-    model = DDP(model, device_ids=[rank], find_unused_parameters=adapter)
+    # Only wrap in DDP for multi-GPU CUDA training
+    if is_cuda():
+        model = DDP(model, device_ids=[rank], find_unused_parameters=adapter)
     
     return model, macs, params
 
@@ -83,7 +87,7 @@ def resume_model(model,
     '''
     Returns the loaded weights of model and optimizer if resume flag is True
     '''
-    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+    map_location = get_map_location(rank)
     if resume:
         checkpoints = torch.load(path_model, map_location=map_location, weights_only=False)
         weights = checkpoints['model_state_dict']
