@@ -34,7 +34,10 @@ metrics.sh
 /data/datasets/*
 
 # Comment the next lines if train is uploaded
-train.py
+# train.py
 computing_test.py
-/utils/train_utils.py
-/options/train
+# /utils/train_utils.py
+# /options/train
+
+
+.DS_Store
