@@ -42,8 +42,6 @@ def run_model(rank, world_size, path_options):
     else:
         largest_capable_size = 1500
 
-    setup(rank, world_size=world_size)
-
     # LOAD THE DATALOADERS
     train_loader, test_loader, samplers = create_data(rank, world_size=world_size, opt = opt['datasets'])
     # DEFINE NETWORK, SCHEDULER AND OPTIMIZER
@@ -77,6 +75,7 @@ def run_model(rank, world_size, path_options):
         model, optim, metrics_train = train_model(model, optim, all_losses, train_loader,
                                             metrics_train, rank = rank, logging_step = 25)
         # eval phase
+        print("Running evaluation...")
         model.eval()
         metrics_eval, imgs_dict = eval_model(model, test_loader, metrics_eval, 
                                                     largest_capable_size=largest_capable_size, rank=rank)
@@ -111,7 +110,9 @@ def main(path_options='./options/train/LOLBlur.yml'):
         # Multi-GPU training with DDP on CUDA
         # Pass path_options so each spawned process can parse its own config
         world_size = len(opt['device']['ids'])
-        mp.spawn(run_model, args=(world_size, path_options), nprocs=world_size, join=True)
+        # mp.spawn(run_model, args=(world_size, path_options), nprocs=world_size, join=True)
+        run_model(rank=0, world_size=1, path_options=path_options)
+
     else:
         # Single-process training on MPS (macOS) or CPU
         print(f'Running single-process training on: {get_device()}')
@@ -120,5 +121,5 @@ def main(path_options='./options/train/LOLBlur.yml'):
     if opt['wandb']['init']:
         wandb.finish()
 
-if __name__ == '__main__':
+if _name_ == '_main_':
     fire.Fire(main)

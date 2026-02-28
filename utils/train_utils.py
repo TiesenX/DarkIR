@@ -40,14 +40,14 @@ def shuffle_sampler(samplers, epoch):
     for sampler in samplers:
         sampler.set_epoch(epoch)
 
-def train_model(model, optim, all_losses, train_loader, metrics, adapter = None, rank = None):
+def train_model(model, optim, all_losses, train_loader, metrics, adapter = None, rank = None, logging_step = 10):
     '''
     It trains the model, returning the model, optim, scheduler and metrics dict
     '''
     outside_batch = None
     mean_metrics = {'train_loss': [], 'train_psnr': [], 'train_og_psnr': [], 'train_ssim':[]}
     dev = get_device(rank)
-    for high_batch, low_batch in train_loader:
+    for i, (high_batch, low_batch) in enumerate(train_loader):
 
         # Move the data to the device (CUDA/MPS/CPU)
         high_batch = high_batch.to(dev)
@@ -79,6 +79,9 @@ def train_model(model, optim, all_losses, train_loader, metrics, adapter = None,
         mean_metrics['train_psnr'].append(psnr.item())
         mean_metrics['train_og_psnr'].append(og_psnr.item())
         mean_metrics['train_ssim'].append(ssim.item()) 
+        
+        if i % logging_step == 0:
+            print(f"Epoch {epoch + 1}, Step {i}: Train Loss: {optim_loss.item():.4f}, Train PSNR: {psnr.item():.4f}, Train SSIM: {ssim.item():.4f}")
     metrics['train_loss'] = np.mean(mean_metrics['train_loss'])
     metrics['train_psnr'] = np.mean(mean_metrics['train_psnr'])
     metrics['train_og_psnr'] = np.mean(mean_metrics['train_og_psnr'])
