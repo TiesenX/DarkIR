@@ -6,7 +6,7 @@ from ptflops import get_model_complexity_info
 from .DarkIR import DarkIR
 from utils.device import get_device, get_map_location, is_cuda
 
-def create_model(opt, rank, adapter = False):
+def create_model(opt, rank, adapter = False, substring = "adapter"):
     '''
     Creates the model.
     opt: a dictionary from the yaml config key network
@@ -38,7 +38,7 @@ def create_model(opt, rank, adapter = False):
     
     # Only wrap in DDP for multi-GPU CUDA training
     if is_cuda():
-        model = DDP(model, device_ids=[rank], find_unused_parameters=adapter)
+        model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     
     return model, macs, params
 
