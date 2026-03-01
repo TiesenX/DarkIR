@@ -47,6 +47,7 @@ def train_model(model, optim, all_losses, train_loader, metrics, adapter = None,
     outside_batch = None
     mean_metrics = {'train_loss': [], 'train_psnr': [], 'train_og_psnr': [], 'train_ssim':[]}
     dev = get_device(rank)
+    total_steps = len(train_loader)
     for i, (high_batch, low_batch) in enumerate(train_loader):
 
         # Move the data to the device (CUDA/MPS/CPU)
@@ -81,7 +82,7 @@ def train_model(model, optim, all_losses, train_loader, metrics, adapter = None,
         mean_metrics['train_ssim'].append(ssim.item()) 
         
         if i % logging_step == 0:
-            print(f"Epoch {epoch + 1}, Step {i}: Train Loss: {optim_loss.item():.4f}, Train PSNR: {psnr.item():.4f}, Train SSIM: {ssim.item():.4f}")
+            print(f"Epoch {epoch + 1}, Step {i}/{total_steps}: Train Loss: {optim_loss.item():.4f}, Train PSNR: {psnr.item():.4f}, Train SSIM: {ssim.item():.4f}")
     metrics['train_loss'] = np.mean(mean_metrics['train_loss'])
     metrics['train_psnr'] = np.mean(mean_metrics['train_psnr'])
     metrics['train_og_psnr'] = np.mean(mean_metrics['train_og_psnr'])
