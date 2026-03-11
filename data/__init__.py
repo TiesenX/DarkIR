@@ -104,7 +104,7 @@ def create_test_data(rank, world_size, opt):
                                                 num_workers=1, 
                                                 world_size = 1)
 
-    elif name == 'VE-LOL-L-CAP':
+    elif name == 'VE_LOL_L_CAP':
         _, test_loader, samplers = main_dataset_ve_lol_l_cap(rank = 1,
                                                 test_path=test_path,
                                                 batch_size_test=1, 
