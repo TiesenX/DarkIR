@@ -9,6 +9,7 @@ from .dataset_reader.dataset_npe import main_dataset_npe
 from .dataset_reader.dataset_vv import main_dataset_vv
 from .dataset_reader.dataset_exdark import main_dataset_exdark
 from .dataset_reader.dataset_loli_street import main_dataset_loli_street
+from .dataset_reader.dataset_ve_lol_l_cap import main_dataset_ve_lol_l_cap
 
 def create_test_data(rank, world_size, opt):
     '''
@@ -97,6 +98,14 @@ def create_test_data(rank, world_size, opt):
 
     elif name == 'LOLi_Street':
         _, test_loader, samplers = main_dataset_loli_street(rank = 1,
+                                                test_path=test_path,
+                                                batch_size_test=1, 
+                                                verbose=False, 
+                                                num_workers=1, 
+                                                world_size = 1)
+
+    elif name == 'VE-LOL-L-CAP':
+        _, test_loader, samplers = main_dataset_ve_lol_l_cap(rank = 1,
                                                 test_path=test_path,
                                                 batch_size_test=1, 
                                                 verbose=False, 
