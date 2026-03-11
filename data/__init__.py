@@ -96,7 +96,7 @@ def create_test_data(rank, world_size, opt):
                                                 world_size = 1)
 
     elif name == 'LOLi_Street':
-        test_loader, samplers = main_dataset_loli_street(rank = 1,
+        _, test_loader, samplers = main_dataset_loli_street(rank = 1,
                                                 test_path=test_path,
                                                 batch_size_test=1, 
                                                 verbose=False, 

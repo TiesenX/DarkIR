@@ -33,12 +33,12 @@ def main_dataset_loli_street(rank = 1,
     
     # extract the images from their corresponding folders, now we get a list of lists
 
-    paths_blur_valid = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_blur_valid ]
-    paths_sharp_valid = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_sharp_valid ]
+    # paths_blur_valid = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_blur_valid ]
+    # paths_sharp_valid = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_sharp_valid ]
 
 
-    list_blur_valid = flatten_list_comprehension(paths_blur_valid)
-    list_sharp_valid = flatten_list_comprehension(paths_sharp_valid)
+    list_blur_valid = paths_blur_valid
+    list_sharp_valid = paths_sharp_valid
 
     # check if all the image routes are correct
     check_paths([list_blur_valid, list_sharp_valid])
