@@ -8,6 +8,7 @@ from .dataset_reader.dataset_mef import main_dataset_mef
 from .dataset_reader.dataset_npe import main_dataset_npe
 from .dataset_reader.dataset_vv import main_dataset_vv
 from .dataset_reader.dataset_exdark import main_dataset_exdark
+from .dataset_reader.dataset_loli_street import main_dataset_loli_street
 
 def create_test_data(rank, world_size, opt):
     '''
