@@ -70,6 +70,24 @@ def load_weights(model, old_weights):
     model.load_state_dict(new_weights)
     return model
 
+def load_pretrained(model, path_pretrained, rank, strict=False):
+    '''
+    Load only model weights from a pretrained checkpoint for transfer learning.
+    - Does NOT restore optimizer, scheduler, or epoch (always starts from epoch 0).
+    - strict=False allows partial weight loading (e.g. different head layers).
+    Supports both raw state-dict .pt files and full checkpoint dicts that contain
+    a 'model_state_dict' key (the format save_checkpoint produces).
+    '''
+    if not path_pretrained:
+        return model
+    map_location = get_map_location(rank)
+    checkpoint = torch.load(path_pretrained, map_location=map_location, weights_only=False)
+    # Support both raw state-dict files and full checkpoint dicts
+    weights = checkpoint.get('model_state_dict', checkpoint)
+    missing, unexpected = model.load_state_dict(weights, strict=strict)
+    
+    return model
+
 def load_optim(optim, optim_weights):
     '''
     Loads the values of the optimizer picking only the weights that are in the new model.
@@ -228,7 +246,7 @@ def save_checkpoint(model, optim, scheduler, metrics_eval, metrics_train, paths,
         print(f"Error saving model: {e}")
     return metrics_train['best_psnr']
 
-__all__ = ['create_model', 'resume_model', 'create_optim_scheduler', 'save_checkpoint',
+__all__ = ['create_model', 'resume_model', 'load_pretrained', 'create_optim_scheduler', 'save_checkpoint',
            'load_optim', 'load_weights']
 
 

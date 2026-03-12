@@ -23,6 +23,7 @@ datasets:
 network:
   name: Network
   resume_training: False
+  pretrained_weights: null  # path to pretrained .pt for transfer learning, or null to skip
   img_channels: 3
   width: 32
   middle_blk_num_enc: 8

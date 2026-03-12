@@ -51,10 +51,13 @@ def run_model(rank, world_size, path_options):
     opt['macs'] = macs
     opt['params'] = params
 
+    # Transfer learning: load pretrained weights only (no optimizer/epoch restore)
+    model = load_pretrained(model, opt['network'].get('pretrained_weights', None), rank=rank)
+
     # define the optimizer
     optim, scheduler = create_optim_scheduler(opt['train'], model)
 
-    # if resume load the weights
+    # if resume load the weights (overwrites pretrained if resume_training: True)
     model, optim, scheduler, start_epochs = resume_model(model, optim, scheduler, path_model = PATH_MODEL,
                                                          rank = rank, resume=opt['network']['resume_training'])
 
