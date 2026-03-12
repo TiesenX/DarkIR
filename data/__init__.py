@@ -210,6 +210,18 @@ def create_data(rank, world_size, opt):
     #                                             crop_type=crop_type,
     #                                             world_size=world_size)  
 
+    elif name == 'LOLi_Street':
+        train_loader, test_loader, samplers = main_dataset_loli_street(rank = rank,
+                                                train_path=train_path,
+                                                test_path = test_path,
+                                                batch_size_train=batch_size_train,
+                                                batch_size_test=batch_size_test,
+                                                flips = flips,
+                                                verbose=verbose,
+                                                cropsize=cropsize,
+                                                num_workers=num_workers,
+                                                crop_type=crop_type,
+                                                world_size=world_size)
     else:
         raise NotImplementedError(f'{name} is not implemented')        
     # print(samplers, train_loader, test_loader)

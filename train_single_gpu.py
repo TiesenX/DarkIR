@@ -75,7 +75,7 @@ def run_model(rank, world_size, path_options):
         shuffle_sampler(samplers, epoch)
         # train phase
         model.train()
-        model, optim, metrics_train = train_model(model, optim, all_losses, train_loader,
+        model, optim, metrics_train = train_model(epoch, model, optim, all_losses, train_loader,
                                             metrics_train, rank = rank, logging_step = 25)
         # eval phase
         print("Running evaluation...")

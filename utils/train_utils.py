@@ -40,7 +40,7 @@ def shuffle_sampler(samplers, epoch):
     for sampler in samplers:
         sampler.set_epoch(epoch)
 
-def train_model(model, optim, all_losses, train_loader, metrics, adapter = None, rank = None, logging_step = 10):
+def train_model(epoch,model, optim, all_losses, train_loader, metrics, adapter = None, rank = None, logging_step = 10):
     '''
     It trains the model, returning the model, optim, scheduler and metrics dict
     '''

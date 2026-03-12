@@ -47,11 +47,11 @@ def main_dataset_loli_street(rank = 1,
         paths_blur_train = [os.path.join(PATH_TRAIN, 'low', path) for path in os.listdir(os.path.join(PATH_TRAIN, 'low'))]
         paths_sharp_train = [os.path.join(PATH_TRAIN, 'high', path) for path in os.listdir(os.path.join(PATH_TRAIN, 'high'))]  
         
-        paths_blur_train = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_blur_train ]
-        paths_sharp_train = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_sharp_train ]
+        # paths_blur_train = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_blur_train ]
+        # paths_sharp_train = [[os.path.join(path_element, path_png) for path_png in os.listdir(path_element)] for path_element in paths_sharp_train ]
 
-        list_blur_train = flatten_list_comprehension(paths_blur_train)
-        list_sharp_train = flatten_list_comprehension(paths_sharp_train)
+        list_blur_train = paths_blur_train
+        list_sharp_train = paths_sharp_train
         check_paths([list_blur_train, list_sharp_train])
 
     if verbose:

@@ -37,8 +37,8 @@ def create_model(opt, rank, adapter = False, substring = "adapter"):
     model.to(dev)
     
     # Only wrap in DDP for multi-GPU CUDA training
-    if is_cuda():
-        model = DDP(model, device_ids=[rank], find_unused_parameters=True)
+    # if is_cuda():
+    #     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     
     return model, macs, params
 

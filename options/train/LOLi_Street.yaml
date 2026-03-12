@@ -8,7 +8,7 @@ device:
 datasets:
   name: LOLi_Street
   train:
-    train_path: /Users/tienlm/Documents/Master/Code/DarkIR_og/data/datasets/LOLi_Street/train
+    train_path: /content/Train
     n_workers: 1  # per GPU
     batch_size_train: 4
     cropsize: 256   # size you want to crop out as input sample.
@@ -16,14 +16,14 @@ datasets:
     verbose: True
     crop_type: Random
   val:
-    test_path: /Users/tienlm/Documents/Master/Code/DarkIR_og/data/datasets/LOLi_Street/test
+    test_path: /content/Val
     batch_size_test: 1
 
 #### network structures
 network:
   name: DarkIR
   resume_training: False
-  pretrained_weights: null  # path to pretrained .pt for transfer learning, or null to skip
+  pretrained_weights: /content/DarkIR_384.pt  # path to pretrained .pt for transfer learning, or null to skip
   img_channels: 3
   width: 32
   middle_blk_num_enc: 2
@@ -69,9 +69,9 @@ train:
 
 #### save model
 save:
-  path: /Users/tienlm/Documents/Master/Code/DarkIR_og/models/DarkIR_384.pt
+  path: ./models/DarkIR_384_LOLI.pt
   best: ./models/bests
-  new: /Users/tienlm/Documents/Master/Code/DarkIR_og/models/DarkIR_384.pt
+  new: ./models/DarkIR_384_LOLI_new.pt
 
 #### wandb:
 wandb:
