@@ -84,8 +84,8 @@ def load_pretrained(model, path_pretrained, rank, strict=False):
     map_location = get_map_location(rank)
     checkpoint = torch.load(path_pretrained, map_location=map_location, weights_only=False)
     # Support both raw state-dict files and full checkpoint dicts
-    weights = checkpoint.get('model_state_dict', checkpoint)
-    missing, unexpected = model.load_state_dict(weights, strict=strict)
+    weights = checkpoint['params']
+    missing, unexpected = model.load_state_dict(weights)
     print("Missing keys: ", missing)
     print("Unexpected keys: ", unexpected)
     print("Done loading pretrained weights")
