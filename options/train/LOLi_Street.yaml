@@ -70,7 +70,7 @@ train:
 #### save model
 save:
   path: ./models/DarkIR_384_LOLI.pt
-  best: ./models/bests
+  best: ./models/bests/DarkIR_384_LOLI_best.pt
   new: ./models/DarkIR_384_LOLI_new.pt
 
 #### wandb:
