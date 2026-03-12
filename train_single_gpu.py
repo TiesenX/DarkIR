@@ -100,7 +100,6 @@ def run_model(rank, world_size, path_options):
         #update scheduler
         scheduler.step()
 
-    cleanup()
 
 def main(path_options='./options/train/LOLBlur.yml'):
     # Parse once here just to read device config and wandb setting
