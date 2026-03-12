@@ -123,5 +123,5 @@ def main(path_options='./options/train/LOLBlur.yml'):
     if opt['wandb']['init']:
         wandb.finish()
 
-if _name_ == '_main_':
+if __name__ == '__main__':
     fire.Fire(main)
