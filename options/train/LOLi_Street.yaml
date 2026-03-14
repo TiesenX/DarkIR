@@ -6,7 +6,7 @@ device:
 
 #### datasets
 datasets:
-  name: LOLi_Street
+  name: LoLI_Street
   train:
     train_path: /content/Train
     n_workers: 1  # per GPU

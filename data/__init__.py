@@ -96,7 +96,7 @@ def create_test_data(rank, world_size, opt):
                                                 num_workers=1, 
                                                 world_size = 1)
 
-    elif name == 'LOLi_Street':
+    elif name == 'LoLI_Street':
         _, test_loader, samplers = main_dataset_loli_street(rank = 1,
                                                 test_path=test_path,
                                                 batch_size_test=1, 
@@ -210,7 +210,7 @@ def create_data(rank, world_size, opt):
     #                                             crop_type=crop_type,
     #                                             world_size=world_size)  
 
-    elif name == 'LOLi_Street':
+    elif name == 'LoLI_Street':
         train_loader, test_loader, samplers = main_dataset_loli_street(rank = rank,
                                                 train_path=train_path,
                                                 test_path = test_path,

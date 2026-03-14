@@ -13,7 +13,7 @@ except:
     from utils import *
 
 def main_dataset_loli_street(rank = 1,
-                         test_path='../../data/datasets/LOLi_Street/test',
+                         test_path='../../data/datasets/LoLI_Street/test',
                          train_path=None,
                          batch_size_train=4,
                          batch_size_test=1, 

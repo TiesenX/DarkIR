@@ -1,12 +1,12 @@
 # some params are needed to work but are not really used in testing
 #### datasets
 datasets:
-  name: LOLi_Street
+  name: LoLI_Street
   train:
     n_workers: 4  # per GPU
     verbose: True
   val:
-    test_path: ./data/datasets/LOLi_Street/test
+    test_path: ./data/datasets/LoLI_Street/test
     batch_size_test: 1
 
 #### network structures
