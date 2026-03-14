@@ -55,7 +55,7 @@ def run_model(rank, world_size, path_options, use_multi):
     opt['params'] = params
 
     # Transfer learning: load pretrained weights only (no optimizer/epoch restore)
-    model = load_pretrained(model, opt['network'].get('pretrained_weights', None), rank=rank)
+    model = load_pretrained(model, opt['network'].get('pretrained_weights', None), rank=rank, use_multi=use_multi)
 
     # define the optimizer
     optim, scheduler = create_optim_scheduler(opt['train'], model)
