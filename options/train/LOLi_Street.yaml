@@ -1,29 +1,29 @@
 #### training devices
 device:
   cuda: True
-  gpus: 0
-  ids: [0]
+  gpus: 0,1
+  ids: [0,1]
 
 #### datasets
 datasets:
   name: LoLI_Street
   train:
-    train_path: /content/Train
-    n_workers: 1  # per GPU
-    batch_size_train: 4
+    train_path: /kaggle/working/LoLI-Street/Train
+    n_workers: 2  # per GPU
+    batch_size_train: 8
     cropsize: 256   # size you want to crop out as input sample.
     flips: True
     verbose: True
     crop_type: Random
   val:
-    test_path: /content/Val
+    test_path: /kaggle/working/LoLI-Street/Val
     batch_size_test: 1
 
 #### network structures
 network:
   name: DarkIR
   resume_training: False
-  pretrained_weights: /content/DarkIR_384.pt  # path to pretrained .pt for transfer learning, or null to skip
+  pretrained_weights: /kaggle/working/DarkIR_384.pt  # path to pretrained .pt for transfer learning, or null to skip
   img_channels: 3
   width: 32
   middle_blk_num_enc: 2
@@ -82,8 +82,3 @@ wandb:
   save_code: True
   resume: never # resume: must, if uploading to an existing project
   id: None # must be None if don't want to overwrite an existing project
-
-
-
-
-
