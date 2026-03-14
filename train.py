@@ -21,7 +21,7 @@ from utils.device import get_device, is_cuda, is_mps
 
 torch.autograd.set_detect_anomaly(True)
 
-def run_model(rank, world_size, path_options):
+def run_model(rank, world_size, path_options, use_multi):
     """
     Each process (or the single process on MPS) parses the config itself,
     so it works with both mp.spawn (CUDA) and direct call (MPS/CPU).
@@ -42,12 +42,13 @@ def run_model(rank, world_size, path_options):
     else:
         largest_capable_size = 1500
 
-    setup(rank, world_size=world_size)
+    if use_multi:
+        setup(rank, world_size=world_size)
 
     # LOAD THE DATALOADERS
     train_loader, test_loader, samplers = create_data(rank, world_size=world_size, opt = opt['datasets'])
     # DEFINE NETWORK, SCHEDULER AND OPTIMIZER
-    model, macs, params = create_model(opt['network'], rank=rank)
+    model, macs, params = create_model(opt['network'], rank=rank, use_multi=use_multi)
 
     # save this stats into opt to upload to wandb
     opt['macs'] = macs
@@ -77,7 +78,7 @@ def run_model(rank, world_size, path_options):
         shuffle_sampler(samplers, epoch)
         # train phase
         model.train()
-        model, optim, metrics_train = train_model(model, optim, all_losses, train_loader,
+        model, optim, metrics_train = train_model(epoch, model, optim, all_losses, train_loader,
                                             metrics_train, rank = rank, logging_step = 25)
         # eval phase
         model.eval()
@@ -104,21 +105,25 @@ def run_model(rank, world_size, path_options):
         #update scheduler
         scheduler.step()
 
-    cleanup()
+    if use_multi:
+        cleanup()
 
-def main(path_options='./options/train/LOLBlur.yml'):
+def main(
+    path_options: str ='./options/train/LOLBlur.yml',
+    use_multi: bool = True
+):
     # Parse once here just to read device config and wandb setting
     opt = parse(path_options)
 
-    if is_cuda():
+    if is_cuda() and use_multi:
         # Multi-GPU training with DDP on CUDA
         # Pass path_options so each spawned process can parse its own config
         world_size = len(opt['device']['ids'])
-        mp.spawn(run_model, args=(world_size, path_options), nprocs=world_size, join=True)
+        mp.spawn(run_model, args=(world_size, path_options, use_multi), nprocs=world_size, join=True)
     else:
         # Single-process training on MPS (macOS) or CPU
         print(f'Running single-process training on: {get_device()}')
-        run_model(rank=0, world_size=1, path_options=path_options)
+        run_model(rank=0, world_size=1, path_options=path_options, use_multi=use_multi)
 
     if opt['wandb']['init']:
         wandb.finish()

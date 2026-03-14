@@ -9,8 +9,9 @@ from losses import *
 from data.dataset_reader.datapipeline import CropTo4
 from utils.device import get_device, get_backend, is_cuda
 
-calc_SSIM = SSIM(data_range=1.)
-crop_to_4= CropTo4()
+# NOTE: calc_SSIM and crop_to_4 are created per-device in functions below
+# (module-level creation would pin them to CPU, breaking multi-GPU training)
+crop_to_4 = CropTo4()
 
 def setup(rank, world_size):
     if not is_cuda():
@@ -40,13 +41,14 @@ def shuffle_sampler(samplers, epoch):
     for sampler in samplers:
         sampler.set_epoch(epoch)
 
-def train_model(epoch,model, optim, all_losses, train_loader, metrics, adapter = None, rank = None, logging_step = 10):
+def train_model(epoch, model, optim, all_losses, train_loader, metrics, adapter = None, rank = None, logging_step = 10):
     '''
     It trains the model, returning the model, optim, scheduler and metrics dict
     '''
     outside_batch = None
     mean_metrics = {'train_loss': [], 'train_psnr': [], 'train_og_psnr': [], 'train_ssim':[]}
     dev = get_device(rank)
+    calc_SSIM = SSIM(data_range=1.).to(dev)  # create on correct device per rank
     total_steps = len(train_loader)
     for i, (high_batch, low_batch) in enumerate(train_loader):
 
@@ -81,8 +83,9 @@ def train_model(epoch,model, optim, all_losses, train_loader, metrics, adapter =
         mean_metrics['train_og_psnr'].append(og_psnr.item())
         mean_metrics['train_ssim'].append(ssim.item()) 
         
-        if i % logging_step == 0:
-            print(f"Epoch {epoch + 1}, Step {i}/{total_steps}: Train Loss: {optim_loss.item():.4f}, Train PSNR: {psnr.item():.4f}, Train SSIM: {ssim.item():.4f}")
+        if rank == 0:
+            if i % logging_step == 0:
+                print(f"Epoch {epoch + 1}, Step {i}/{total_steps}: Train Loss: {optim_loss.item():.4f}, Train PSNR: {psnr.item():.4f}, Train SSIM: {ssim.item():.4f}")
     metrics['train_loss'] = np.mean(mean_metrics['train_loss'])
     metrics['train_psnr'] = np.mean(mean_metrics['train_psnr'])
     metrics['train_og_psnr'] = np.mean(mean_metrics['train_og_psnr'])
@@ -91,8 +94,18 @@ def train_model(epoch,model, optim, all_losses, train_loader, metrics, adapter =
     return model, optim, metrics
 
 def eval_one_loader(model, test_loader, metrics, largest_capable_size = 1500, adapter = None, rank=0):
+    # In DDP, only rank 0 evaluates to avoid redundant computation
+    # (test loader is not distributed — all ranks would see the same images)
+    if rank != 0:
+        metrics['valid_psnr'] = 0.
+        metrics['valid_ssim'] = 0.
+        metrics['valid_lpips'] = 0.
+        imgs_dict = {}
+        return metrics, imgs_dict
+
     dev = get_device(rank)
-    calc_LPIPS = LPIPS(net = 'vgg', verbose=False).to(dev)
+    calc_SSIM = SSIM(data_range=1.).to(dev)  # create on correct device
+    calc_LPIPS = LPIPS(net='vgg', verbose=False).to(dev)  # create once, reuse across batches
     mean_metrics = {'valid_psnr':[], 'valid_ssim':[], 'valid_lpips':[]}
     with torch.no_grad():
         # Now we need to go over the test_loader and evaluate the results of the epoch
@@ -167,7 +180,7 @@ def eval_model(model, test_loader, metrics, largest_capable_size = 1500, adapter
             metrics, imgs_dict = eval_one_loader(model, loader, all_metrics[f'{key}'], largest_capable_size = largest_capable_size, adapter = adapter, rank=rank)
             all_metrics[f'{key}'] = metrics
             all_imgs_dict[f'{key}'] = imgs_dict
-        print(all_metrics)
+        if rank == 0: print(all_metrics)
         return all_metrics, all_imgs_dict
     
     else:

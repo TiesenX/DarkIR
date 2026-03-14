@@ -6,7 +6,7 @@ from ptflops import get_model_complexity_info
 from .DarkIR import DarkIR
 from utils.device import get_device, get_map_location, is_cuda
 
-def create_model(opt, rank, adapter = False, substring = "adapter"):
+def create_model(opt, rank, adapter = False, substring = "adapter", use_multi=False):
     '''
     Creates the model.
     opt: a dictionary from the yaml config key network
@@ -37,8 +37,8 @@ def create_model(opt, rank, adapter = False, substring = "adapter"):
     model.to(dev)
     
     # Only wrap in DDP for multi-GPU CUDA training
-    # if is_cuda():
-    #     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
+    if is_cuda() and use_multi:
+        model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     
     return model, macs, params
 
@@ -70,7 +70,7 @@ def load_weights(model, old_weights):
     model.load_state_dict(new_weights)
     return model
 
-def load_pretrained(model, path_pretrained, rank, strict=False):
+def load_pretrained(model, path_pretrained, rank, strict=False, use_multi=False):
     '''
     Load only model weights from a pretrained checkpoint for transfer learning.
     - Does NOT restore optimizer, scheduler, or epoch (always starts from epoch 0).
@@ -85,6 +85,8 @@ def load_pretrained(model, path_pretrained, rank, strict=False):
     checkpoint = torch.load(path_pretrained, map_location=map_location, weights_only=False)
     # Support both raw state-dict files and full checkpoint dicts
     weights = checkpoint['params']
+    if is_cuda() and use_multi:
+        weights = {'module.' + key: value for key, value in weights.items()}
     missing, unexpected = model.load_state_dict(weights)
     print("Missing keys: ", missing)
     print("Unexpected keys: ", unexpected)
