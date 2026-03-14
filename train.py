@@ -117,8 +117,8 @@ def main(
 
     if is_cuda() and use_multi:
         # Multi-GPU training with DDP on CUDA
-        # Pass path_options so each spawned process can parse its own config
         world_size = len(opt['device']['ids'])
+        print(f'[DDP] Launching multi-GPU training on {world_size} GPU(s): {opt["device"]["ids"]}')
         mp.spawn(run_model, args=(world_size, path_options, use_multi), nprocs=world_size, join=True)
     else:
         # Single-process training on MPS (macOS) or CPU

@@ -180,7 +180,7 @@ def eval_model(model, test_loader, metrics, largest_capable_size = 1500, adapter
             metrics, imgs_dict = eval_one_loader(model, loader, all_metrics[f'{key}'], largest_capable_size = largest_capable_size, adapter = adapter, rank=rank)
             all_metrics[f'{key}'] = metrics
             all_imgs_dict[f'{key}'] = imgs_dict
-        if rank == 0: print(all_metrics)
+        print(all_metrics)
         return all_metrics, all_imgs_dict
     
     else:
