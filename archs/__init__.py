@@ -1,3 +1,4 @@
+from sympy import true
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -70,7 +71,7 @@ def load_weights(model, old_weights):
     model.load_state_dict(new_weights)
     return model
 
-def load_pretrained(model, path_pretrained, rank, strict=False, use_multi=False):
+def load_pretrained(model, path_pretrained, rank, strict=False, use_multi=False, from_checkpoint=False):
     '''
     Load only model weights from a pretrained checkpoint for transfer learning.
     - Does NOT restore optimizer, scheduler, or epoch (always starts from epoch 0).
@@ -84,9 +85,27 @@ def load_pretrained(model, path_pretrained, rank, strict=False, use_multi=False)
     map_location = get_map_location(rank)
     checkpoint = torch.load(path_pretrained, map_location=map_location, weights_only=False)
     # Support both raw state-dict files and full checkpoint dicts
-    weights = checkpoint['params']
-    if is_cuda() and use_multi:
-        weights = {'module.' + key: value for key, value in weights.items()}
+    if not from_checkpoint:
+        weights = checkpoint['params']
+        if is_cuda() and use_multi:
+            weights = {'module.' + key: value for key, value in weights.items()}
+    else:
+        if 'model_state_dict' in checkpoint:
+            weights = checkpoint['model_state_dict']
+        else:
+            weights = checkpoint['params']
+        # Check if module in weights
+        ddp_trained = False
+        if 'module.' in next(iter(weights.keys())):
+            ddp_trained = True
+        
+        if is_cuda() and use_multi:
+            if not ddp_trained:
+                weights = {'module.' + key: value for key, value in weights.items()}
+        else:
+            if ddp_trained:
+                weights = {key.replace('module.', ''): value for key, value in weights.items()}
+
     missing, unexpected = model.load_state_dict(weights)
     print("Missing keys: ", missing)
     print("Unexpected keys: ", unexpected)

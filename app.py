@@ -1,104 +1,87 @@
-import gradio as gr 
+from torch._C._jit_tree_views import NoneLiteral
+import gradio as gr
 from PIL import Image
 import os
 import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms
-import torchvision
 import numpy as np
-import yaml
-from huggingface_hub import hf_hub_download
 
-from archs import Network
+from archs import create_model, load_pretrained
 from options.options import parse
 
-path_opt = './options/predict/LOLBlur.yml'
+# ── Config ────────────────────────────────────────────────────────────────────
+# Point this to any train YAML that matches the architecture of your checkpoint.
+# Only the [network] section is used here; paths/datasets are ignored.
+PATH_OPTIONS  = './options/train/LoLI_Street.yaml'
 
-opt = parse(path_opt)
+# Path to your trained checkpoint (.pt).
+# Supports both save_checkpoint format (model_state_dict key)
+# and external checkpoints (params key).
+PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/kaggle_output/_output_/DarkIR/models/bests/DarkIR_384_LOLI_best.pt'
+# PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/darkir-materials/models/DarkIR_384.pt'
+# ──────────────────────────────────────────────────────────────────────────────
+
+opt    = parse(PATH_OPTIONS)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-#define some auxiliary functions
+
+# Build model (rank=0, no DDP for demo)
+model, _, _ = create_model(opt['network'], rank=0, use_multi=False)
+model       = load_pretrained(model, PATH_CHECKPOINT, rank=0, use_multi=False, from_checkpoint=True)
+model       = model.to(device)
+model.eval()
+print(f'Model loaded from {PATH_CHECKPOINT} on {device}')
+
 pil_to_tensor = transforms.ToTensor()
-    
-# define some parameters based on the run we want to make
-# selected network
-network = opt['network']['name']
 
-PATH_MODEL = opt['save']['path']
-
-model = Network(img_channel=opt['network']['img_channels'], 
-                    width=opt['network']['width'], 
-                    middle_blk_num=opt['network']['middle_blk_num'], 
-                    enc_blk_nums=opt['network']['enc_blk_nums'],
-                    dec_blk_nums=opt['network']['dec_blk_nums'], 
-                    dilations=opt['network']['dilations'],
-                    extra_depth_wise=opt['network']['extra_depth_wise'])
-
-checkpoints = torch.load(opt['save']['best'], map_location=device)
-# print(checkpoints)
-model.load_state_dict(checkpoints['model_state_dict'])
-
-model = model.to(device)
-
-def load_img (filename):
-    img = Image.open(filename).convert("RGB")
-    img_tensor = pil_to_tensor(img)
-    return img_tensor
+def pad_to_multiple(tensor, multiple=8):
+    """Pad H and W to be divisible by `multiple`."""
+    _, _, H, W = tensor.shape
+    pad_h = (multiple - H % multiple) % multiple
+    pad_w = (multiple - W % multiple) % multiple
+    return F.pad(tensor, (0, pad_w, 0, pad_h)), H, W
 
 def process_img(image):
-    img = np.array(image)
-    img = img / 255.
-    img = img.astype(np.float32)
-    y = torch.tensor(img).permute(2,0,1).unsqueeze(0).to(device)
+    """Run DarkIR on a PIL image and return restored PIL image."""
+    if image is None:
+        return None
+    img = np.array(image.convert('RGB')).astype(np.float32) / 255.
+    y   = torch.tensor(img).permute(2, 0, 1).unsqueeze(0).to(device)
 
+    y_padded, H, W = pad_to_multiple(y)
     with torch.no_grad():
-        x_hat = model(y)
+        out = model(y_padded)
 
-    restored_img = x_hat.squeeze().permute(1,2,0).clamp_(0, 1).cpu().detach().numpy()
-    restored_img = np.clip(restored_img, 0. , 1.)
+    # Unpad and convert back to PIL
+    out = out[:, :, :H, :W].clamp(0, 1).squeeze(0)
+    restored = (out.permute(1, 2, 0).cpu().numpy() * 255.).round().astype(np.uint8)
+    return Image.fromarray(restored)
 
-    restored_img = (restored_img * 255.0).round().astype(np.uint8)  # float32 to uint8
-    return Image.fromarray(restored_img) #(image, Image.fromarray(restored_img))
+# ── Gradio UI ─────────────────────────────────────────────────────────────────
+title = "DarkIR — Low-Light Image Restoration 🌙✨"
+description = """
+## DarkIR: Robust Low-Light Image Restoration (CVPR 2025)
 
-title = "Low-Light-Deblurring ✏️🖼️ 🤗"
-description = ''' ## [Low Light Image deblurring enhancement](https://github.com/cidautai/Net-Low-light-Deblurring)
+Upload a **low-light or blurry dark image** and DarkIR will restore it.
 
-[Daniel Feijoo](https://github.com/danifei)
-
-Fundación Cidaut
-
-
-> **Disclaimer:** please remember this is not a product, thus, you will notice some limitations.
-**This demo expects an image with some degradations.**
-Due to the GPU memory limitations, the app might crash if you feed a high-resolution image (2K, 4K). <br>
-The model was trained using mostly synthetic data, thus it might not work great on real-world complex images. 
-
-<br>
-'''
-
-examples = [['examples/inputs/0010.png'],
-            ['examples/inputs/0060.png'], 
-            ['examples/inputs/0075.png'], 
-            ["examples/inputs/0087.png"], 
-            ["examples/inputs/0088.png"]]
-
-css = """
-    .image-frame img, .image-container img {
-        width: auto;
-        height: auto;
-        max-width: none;
-    }
+> Model: **DarkIR** — handles noise, blur, and low illumination in a single pass.  
+> High-resolution images (>2K) may be slow or run out of memory.
 """
 
+# Use teaser images from the repo as built-in examples
+examples = []
+for f in ['assets/teaser/0085_low.png', 'assets/teaser/low00747.png']:
+    if os.path.exists(f):
+        examples.append([f])
+
 demo = gr.Interface(
-    fn = process_img,
-    inputs = [
-            gr.Image(type = 'pil', label = 'input')
-    ],
-    outputs = [gr.Image(type='pil', label = 'output')],
-    title = title,
+    fn          = process_img,
+    inputs      = gr.Image(type='pil', label='Input (low-light image)'),
+    outputs     = gr.Image(type='pil', label='Restored output'),
+    title       = title,
     description = description,
-    examples = examples,
-    css = css
+    examples    = examples if examples else None,
+    css         = ".image-frame img { width: auto; height: auto; max-width: none; }"
 )
 
 if __name__ == '__main__':
