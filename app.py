@@ -18,7 +18,7 @@ PATH_OPTIONS  = './options/train/LoLI_Street.yaml'
 # Path to your trained checkpoint (.pt).
 # Supports both save_checkpoint format (model_state_dict key)
 # and external checkpoints (params key).
-PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/kaggle_output/_output_/DarkIR/models/bests/DarkIR_384_LOLI_best.pt'
+PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/AAI/darkir-materials/output/models/DarkIR-m-VELOLCAP-best.pt'
 # PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/darkir-materials/models/DarkIR_384.pt'
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -85,4 +85,4 @@ demo = gr.Interface(
 )
 
 if __name__ == '__main__':
-    demo.launch()
+    demo.launch(share=True)
