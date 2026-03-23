@@ -10,6 +10,7 @@ from .dataset_reader.dataset_vv import main_dataset_vv
 from .dataset_reader.dataset_exdark import main_dataset_exdark
 from .dataset_reader.dataset_loli_street import main_dataset_loli_street
 from .dataset_reader.dataset_ve_lol_l_cap import main_dataset_ve_lol_l_cap
+from .dataset_reader.dataset_ve_lol_l_syn import main_dataset_ve_lol_l_syn
 
 def create_test_data(rank, world_size, opt):
     '''
@@ -106,6 +107,14 @@ def create_test_data(rank, world_size, opt):
 
     elif name == 'VE_LOL_L_CAP':
         _, test_loader, samplers = main_dataset_ve_lol_l_cap(rank = 1,
+                                                test_path=test_path,
+                                                batch_size_test=1, 
+                                                verbose=False, 
+                                                num_workers=1, 
+                                                world_size = 1)
+
+    elif name == 'VE_LOL_L_SYN':
+        _, test_loader, samplers = main_dataset_ve_lol_l_syn(rank = 1,
                                                 test_path=test_path,
                                                 batch_size_test=1, 
                                                 verbose=False, 
@@ -224,6 +233,19 @@ def create_data(rank, world_size, opt):
                                                 world_size=world_size)
     elif name == 'VE_LOL_L_CAP':
         train_loader, test_loader, samplers = main_dataset_ve_lol_l_cap(rank=rank,
+                                                train_path=train_path,
+                                                test_path=test_path,
+                                                batch_size_train=batch_size_train,
+                                                batch_size_test=batch_size_test,
+                                                flips=flips,
+                                                verbose=verbose,
+                                                cropsize=cropsize,
+                                                num_workers=num_workers,
+                                                crop_type=crop_type,
+                                                world_size=world_size)
+
+    elif name == 'VE_LOL_L_SYN':
+        train_loader, test_loader, samplers = main_dataset_ve_lol_l_syn(rank=rank,
                                                 train_path=train_path,
                                                 test_path=test_path,
                                                 batch_size_train=batch_size_train,
