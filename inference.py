@@ -15,7 +15,6 @@ args = parser.parse_args()
 
 path_options = args.config
 opt = parse(path_options)
-os.environ["CUDA_VISIBLE_DEVICES"]= "1"
 
 # PyTorch library
 import torch
@@ -29,9 +28,14 @@ from archs import *
 from losses import *
 from data import *
 from utils.test_utils import *
+from utils.device import get_device, is_cuda
 from ptflops import get_model_complexity_info
 
-device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
+# Set CUDA device only if available
+if is_cuda():
+    os.environ["CUDA_VISIBLE_DEVICES"]= "1"
+
+device = get_device()
 
 #define some auxiliary functions
 pil_to_tensor = transforms.ToTensor()
@@ -140,8 +144,12 @@ def predict_folder(rank, world_size):
 
 def main():
     world_size = 1
-    print('Used GPUS:', world_size)
-    mp.spawn(predict_folder, args =(world_size,), nprocs=world_size, join=True)
+    if is_cuda():
+        print('Used GPUS:', world_size)
+        mp.spawn(predict_folder, args =(world_size,), nprocs=world_size, join=True)
+    else:
+        print(f'Running inference on: {device}')
+        predict_folder(rank=0, world_size=1)
 
 if __name__ == '__main__':
     main()

@@ -12,14 +12,13 @@ parser.add_argument('-p', '--config', type=str, default='./options/test/RealBlur
 args = parser.parse_args()
 opt = parse(args.config)
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-
 import torch
 from archs import create_model
 from torchvision.transforms import Resize
 import torch.multiprocessing as mp
 from options.options import parse
 from utils.test_utils import *
+from utils.device import get_device, is_cuda
 from tqdm import tqdm
 from data import create_test_data
 import pyiqa
@@ -27,7 +26,11 @@ from ptflops import get_model_complexity_info
 
 import torch.nn.functional as F
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# Set CUDA device only if available
+if is_cuda():
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+device = get_device()
 
 def pad_tensor(tensor, multiple = 8):
     '''
@@ -55,10 +58,11 @@ def load_model(rank, model, path_weights):
     return model
 
 def create_losses(list_of_losses = ['musiq', 'niqe', 'nrqm', 'brisque'], rank=0):
+    dev = get_device(rank)
     losses = {}
     for name in list_of_losses:
-        losses[name] = {name: pyiqa.create_metric(name).to(rank)}
-    
+        losses[name] = {name: pyiqa.create_metric(name).to(dev)}
+
     return losses
 
 resize = opt['Resize']
@@ -83,7 +87,7 @@ def eval_unpaired(rank, world_size):
     for element, _ in test_loader:
 
         ind_metric = {name: None for name in names}
-        element = element.to(rank)
+        element = element.to(device)
 
         _, _, H, W = element.shape
         if resize and (H >=1500 or W>=1500):
@@ -126,8 +130,12 @@ def eval_unpaired(rank, world_size):
 
 def main():
     world_size = 1
-    print('Used GPUS:', world_size)
-    mp.spawn(eval_unpaired, args =(world_size,), nprocs=world_size, join=True)
+    if is_cuda():
+        print('Used GPUS:', world_size)
+        mp.spawn(eval_unpaired, args =(world_size,), nprocs=world_size, join=True)
+    else:
+        print(f'Running evaluation on: {device}')
+        eval_unpaired(rank=0, world_size=1)
 
 if __name__ == '__main__':
     main()
