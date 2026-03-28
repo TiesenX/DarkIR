@@ -19,7 +19,7 @@ PATH_OPTIONS  = './options/train/LoLI_Street.yaml'
 # Supports both save_checkpoint format (model_state_dict key)
 # and external checkpoints (params key).
 PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/AAI/darkir-materials/output/models/DarkIR-m-VELOLCAP-best.pt'
-# PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/darkir-materials/models/DarkIR_384.pt'
+#PATH_CHECKPOINT = '/Users/tienlm/Documents/Master/Code/AAI/darkir-materials/models/DarkIR_384.pt'
 # ──────────────────────────────────────────────────────────────────────────────
 
 opt    = parse(PATH_OPTIONS)
@@ -77,7 +77,7 @@ for f in ['assets/teaser/0085_low.png', 'assets/teaser/low00747.png']:
 demo = gr.Interface(
     fn          = process_img,
     inputs      = gr.Image(type='pil', label='Input (low-light image)'),
-    outputs     = gr.Image(type='pil', label='Restored output'),
+    outputs     = gr.Image(type='pil', label='Restored output', format="jpeg"),
     title       = title,
     description = description,
     examples    = examples if examples else None,
