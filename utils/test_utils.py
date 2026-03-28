@@ -7,16 +7,22 @@ sys.path.append('../losses')
 sys.path.append('../data/datasets/datapipeline')
 from losses import *
 from tqdm import tqdm
+from utils.device import get_device, get_backend, is_cuda
 
 calc_SSIM = SSIM(data_range=1.)
 
 #---------- Set of functions to work with DDP
 def setup(rank, world_size, Master_port = '12355'):
+    if not is_cuda():
+        return
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = Master_port
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    backend = get_backend()
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
 
 def cleanup():
+    if not is_cuda():
+        return
     dist.destroy_process_group()
     
 def reduce_tensor(tensor, world_size):
@@ -39,7 +45,8 @@ def shuffle_sampler(samplers, epoch):
         sampler.set_epoch(epoch)
 
 def eval_one_loader(model, test_loader, metrics, rank=0, world_size = 1, eta = False):
-    calc_LPIPS = LPIPS(net = 'vgg', verbose=False).to(rank)
+    dev = get_device(rank)
+    calc_LPIPS = LPIPS(net = 'vgg', verbose=False).to(dev)
     mean_metrics = {'valid_psnr':[], 'valid_ssim':[], 'valid_lpips':[]}
 
     if eta: pbar = tqdm(total = int(len(test_loader)))
@@ -47,8 +54,8 @@ def eval_one_loader(model, test_loader, metrics, rank=0, world_size = 1, eta = F
         # Now we need to go over the test_loader and evaluate the results of the epoch
         for high_batch_valid, low_batch_valid in test_loader:
 
-            high_batch_valid = high_batch_valid.to(rank)
-            low_batch_valid = low_batch_valid.to(rank)         
+            high_batch_valid = high_batch_valid.to(dev)
+            low_batch_valid = low_batch_valid.to(dev)         
 
             enhanced_batch_valid = model(low_batch_valid)
             # loss
@@ -64,9 +71,14 @@ def eval_one_loader(model, test_loader, metrics, rank=0, world_size = 1, eta = F
 
             if eta: pbar.update(1)
 
-    valid_psnr_tensor = reduce_tensor(torch.tensor(np.mean(mean_metrics['valid_psnr'])).to(rank), world_size=world_size)
-    valid_ssim_tensor = reduce_tensor(torch.tensor(np.mean(mean_metrics['valid_ssim'])).to(rank),world_size=world_size)
-    valid_lpips_tensor = reduce_tensor(torch.tensor(np.mean(mean_metrics['valid_lpips'])).to(rank), world_size=world_size)
+    if is_cuda() and world_size > 1:
+        valid_psnr_tensor = reduce_tensor(torch.tensor(np.mean(mean_metrics['valid_psnr'])).to(dev), world_size=world_size)
+        valid_ssim_tensor = reduce_tensor(torch.tensor(np.mean(mean_metrics['valid_ssim'])).to(dev),world_size=world_size)
+        valid_lpips_tensor = reduce_tensor(torch.tensor(np.mean(mean_metrics['valid_lpips'])).to(dev), world_size=world_size)
+    else:
+        valid_psnr_tensor = torch.tensor(np.mean(mean_metrics['valid_psnr']))
+        valid_ssim_tensor = torch.tensor(np.mean(mean_metrics['valid_ssim']))
+        valid_lpips_tensor = torch.tensor(np.mean(mean_metrics['valid_lpips']))
 
     metrics['valid_psnr'] = valid_psnr_tensor.item()
     metrics['valid_ssim'] = valid_ssim_tensor.item()

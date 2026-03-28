@@ -12,7 +12,6 @@ args = parser.parse_args()
 # the file and change them what you need
 path_options = args.config
 opt = parse(path_options)
-os.environ["CUDA_VISIBLE_DEVICES"]= "0" # you need to fix this before importing torch
 
 # PyTorch library
 import torch
@@ -26,7 +25,12 @@ from losses import *
 from data import *
 from utils.utils import create_path_models
 from utils.test_utils import *
+from utils.device import get_device, is_cuda
 from ptflops import get_model_complexity_info
+
+# Set CUDA device only if available
+if is_cuda():
+    os.environ["CUDA_VISIBLE_DEVICES"]= "0"
 
 #parameters for saving model
 PATH_MODEL= create_path_models(opt['save'])
@@ -36,8 +40,6 @@ def load_model(model, path_weights):
 
     map_location = 'cpu'
     checkpoints = torch.load(path_weights, map_location=map_location, weights_only=False)
-    # print(checkpoints.keys())
-    # sys.exit()
     weights = checkpoints['params']
     weights = {'module.' + key: value for key, value in weights.items()}
 
@@ -46,11 +48,11 @@ def load_model(model, path_weights):
 
     model.load_state_dict(weights)
     print('Loaded weights correctly')
-    
+
     return model
 
 def run_evaluation(rank, world_size):
-    
+
     setup(rank, world_size=world_size)
     # LOAD THE DATALOADERS
     test_loader, _ = create_test_data(rank, world_size=world_size, opt = opt['datasets'])
@@ -60,13 +62,15 @@ def run_evaluation(rank, world_size):
     model = load_model(model, opt['save']['path'])
     metrics_eval = {}
 
-    # Ensure all processes have reached this point
-    dist.barrier()
+    # Ensure all processes have reached this point (only for DDP)
+    if is_cuda() and dist.is_initialized():
+        dist.barrier()
     # eval phase
     model.eval()
     metrics_eval, _ = eval_model(model, test_loader, metrics_eval, rank=rank, world_size=world_size, eta = True)
-    # Ensure all processes have reached this point
-    dist.barrier()
+    # Ensure all processes have reached this point (only for DDP)
+    if is_cuda() and dist.is_initialized():
+        dist.barrier()
     # print some results
     if rank==0:
         if type(next(iter(metrics_eval.values()))) == dict:
@@ -78,7 +82,11 @@ def run_evaluation(rank, world_size):
 
 def main():
     world_size = 1
-    mp.spawn(run_evaluation, args =(world_size,), nprocs=world_size, join=True)
+    if is_cuda():
+        mp.spawn(run_evaluation, args =(world_size,), nprocs=world_size, join=True)
+    else:
+        print(f'Running evaluation on: {get_device()}')
+        run_evaluation(rank=0, world_size=1)
 
 if __name__ == '__main__':
     main()
