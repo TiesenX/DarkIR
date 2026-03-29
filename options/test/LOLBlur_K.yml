@@ -24,6 +24,6 @@ network:
 
 #### model weights
 save:
-  path: ./models/DarkIR_384.pt
+  path: /kaggle/input/datasets/datlyvan/darkirweight/Checkpoints/DarkIR_384.pt
 
 Resize: False
