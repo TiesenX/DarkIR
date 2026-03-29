@@ -41,7 +41,6 @@ def load_model(model, path_weights):
     map_location = 'cpu'
     checkpoints = torch.load(path_weights, map_location=map_location, weights_only=False)
     weights = checkpoints['params']
-    weights = {'module.' + key: value for key, value in weights.items()}
 
     macs, params = get_model_complexity_info(model, (3, 256, 256), print_per_layer_stat=False, verbose=False)
     print('Network complexity: ' ,macs, params)
